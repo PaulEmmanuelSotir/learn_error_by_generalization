@@ -1,5 +1,6 @@
-models/
 .vscode/
+remote_run.sh
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
