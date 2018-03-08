@@ -6,6 +6,8 @@ import tensorflow as tf
 
 from main import build_graph, train, load_cifar
 
+__all__ = ['hyperparameter_search']
+
 N_ITER = 200
 HP_DOMAIN = {
     'lr': [1e-5, 0.1],
@@ -21,7 +23,7 @@ HP_DOMAIN = {
 }
 
 
-def main(hp_domain, n_iter):
+def hyperparameter_search(hp_domain, n_iter):
     """ Random hyperparameter search on DNN model """
     dataset = load_cifar()
     best_acc, best_model_name = 0., 'model_0'
@@ -60,5 +62,5 @@ def main(hp_domain, n_iter):
 
 
 if __name__ == '__main__':
-    best_hp, best_acc, best_model_name = main(HP_DOMAIN, n_iter=N_ITER)
+    best_hp, best_acc, best_model_name = hyperparameter_search(HP_DOMAIN, n_iter=N_ITER)
     np.save(os.path.join(HP_DOMAIN['save_dir'], 'best_hp.npy'), {'hp': best_hp, 'acc': best_acc, 'model_name': best_model_name})
