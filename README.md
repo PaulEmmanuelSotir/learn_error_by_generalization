@@ -1,4 +1,4 @@
-# Explicit generalization training
+# Explicit generalization training (WIP)
 
 ## Run instructions
 
@@ -11,8 +11,14 @@ git clone https://github.com/PaulEmmanuelSotir/generalization_loss.git
 cd ./explicit_generalization_training
 ```
 
-- And train the model
+- Train the model on CIFAR dataset
 
 ```bash
-python main.py --train
+python train_dnn.py
+```
+
+- Apply explicit generalization training on trained model to learn errors on testset predictions
+
+```bash
+python generalization_training.py
 ```

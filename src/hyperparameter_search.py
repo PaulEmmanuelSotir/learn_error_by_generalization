@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 import tensorflow as tf
 
-from train import build_graph, train
+from train_dnn import build_graph, train
 import utils
 
 __all__ = ['hyperparameter_search']
