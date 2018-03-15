@@ -66,7 +66,7 @@ class DNN(object):
                 layer = self._dense_layer(layer, [in_size, out_size], 'layer_{}'.format(i), self.batch_norm, self.weight_init, self.activation_fn, self.dropout)
             self.logits = self._dense_layer(layer, [self.layers[-1], self.n_classes], 'output_layer', self.batch_norm, self.weight_init)
             with tf.variable_scope('output_layer'):
-                self.probs = tf.nn.softmax(self.logits)
+                self.probs = tf.nn.softmax(self.logits, name='probs')
 
     def _dense_layer(self, x, shape, name, batch_norm, init, activation_fn=None, keep_prob=1.):
         with tf.variable_scope(name):
@@ -76,5 +76,5 @@ class DNN(object):
             if batch_norm:
                 logits = tf.layers.batch_normalization(logits, training=self.training, name='batch_norm')
             dense = activation_fn(logits) if activation_fn is not None else logits
-            dense = tf.nn.dropout(dense, keep_prob)
+            dense = tf.nn.dropout(dense, keep_prob, name='logits')
         return dense

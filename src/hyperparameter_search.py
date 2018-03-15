@@ -1,14 +1,19 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 """ Random hyperparameter search on DNN model """
 import os
 import time
+import argparse
 import numpy as np
 import tensorflow as tf
 
-from main import build_graph, train, load_cifar
+from train import build_graph, train
+import utils
 
 __all__ = ['hyperparameter_search']
 
-N_ITER = 200
+USE_CIFAR100 = False
+N_ITER = 100
 HP_DOMAIN = {
     'lr': [1e-5, 0.1],
     'l2_reg': [1e-6, 5e-2],
@@ -19,19 +24,19 @@ HP_DOMAIN = {
     'batch_norm': (True, False),
     'weight_decay': [0., 5e-2],
     'layers': [256] * 3,
-    'save_dir': '/home/pes/deeplearning/models/generalization_training/hyperparameter_search/'
+    'save_dir': '/home/pes/deeplearning/models/generalization_training/hp_search_1/'
 }
 
 
 def hyperparameter_search(hp_domain, n_iter):
     """ Random hyperparameter search on DNN model """
-    dataset = load_cifar()
+    dataset = utils.load_cifar(USE_CIFAR100)
     best_acc, best_model_name = 0., 'model_0'
     start_time = time.time()
 
     for i in range(n_iter):
         elapsed_time = time.time() - start_time
-        print('\n' * 4 + '#' * 100 + '\n>\tHyperparameter_set#%d, elapsed_time=%2f\n>\tTraining on a new hyperparameter set:' % (i, elapsed_time))
+        print('\n' * 4 + '#' * 100 + '\n>\tHyperparameter_set#%d, elapsed_time=%ds\n>\tTraining on a new hyperparameter set:' % (i, elapsed_time))
 
         # Randomly sample hyperparameters from domain
         hp = {}
@@ -55,6 +60,7 @@ def hyperparameter_search(hp_domain, n_iter):
             best_hp = hp
             best_acc = acc
             best_model_name = 'model_%d' % i
+        np.save(os.path.join(hp['save_dir'], 'results.npy'), {'hp': hp, 'acc': acc})
         print('>\taccuracy=%4f' % (acc) + '\n' + '#' * 100)
 
     print('\n\nHyperparameter search done!\n\tbest_acc=%4f\n\tbest_model_name=%s' % (best_acc, best_model_name) + '\n' + '#' * 100)
@@ -62,5 +68,12 @@ def hyperparameter_search(hp_domain, n_iter):
 
 
 if __name__ == '__main__':
+    # Parse CMD args
+    parser = argparse.ArgumentParser(description="Hyperparameter search for FC neural net trained on CIFAR dataset")
+    parser.add_argument('--save_dir', metavar='-s', type=str, default=HP_DOMAIN['save_dir'],
+                        help='Directory where tensorflow models and hyperparameter search results will be saved')
+    HP_DOMAIN['save_dir'] = parser.parse_args().save_dir
+
+    # Run hyperparameter search
     best_hp, best_acc, best_model_name = hyperparameter_search(HP_DOMAIN, n_iter=N_ITER)
     np.save(os.path.join(HP_DOMAIN['save_dir'], 'best_hp.npy'), {'hp': best_hp, 'acc': best_acc, 'model_name': best_model_name})
