@@ -5,12 +5,12 @@ import os
 import shutil
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.keras.datasets import cifar10, cifar100
 
 import utils
 import dnn
 
-__all__ = ['build_graph', 'train', 'load_cifar']
+# TODO: try other optimization methods
+__all__ = ['build_graph', 'train']
 
 # Hyperparameters (argparse configuration)
 hyperparameters_config = {
@@ -22,21 +22,20 @@ hyperparameters_config = {
     '--batch_size': {'default': 64, 'metavar': '-b', 'type': int, 'help': 'Batch size to train on'},
     '--batch_norm': {'default': True, 'metavar': '-n', 'type': bool, 'help': 'Enable or disable batch normalization'},
     '--weight_decay': {'default': 5e-4, 'type': float, 'help': 'Weight decay (L2 regularization)'},
-    '--layers': {'default': [256] * 3, 'type': int, 'help': 'Fully connected hidden layer sizes', 'nargs': '+'},
+    '--layers': {'default': [128] * 5, 'type': int, 'help': 'Fully connected hidden layer sizes', 'nargs': '+'},
     '--save_dir': {'default': '/home/pes/deeplearning/models/generalization_training/train_1/', 'type': str, 'help': 'Tensorflow model save directory'}
 }
 
 INFERENCE_BATCH_SIZE = 1024
 ALLOW_GPU_MEM_GROWTH = True
 USE_CIFAR100 = False
-INPUT_SIZE = 32*32*3
 N_CLASSES = 100 if USE_CIFAR100 else 10
 
 
 def main():
     # Parse cmd arguments
     hp = utils.hyperparameters_from_args(hyperparameters_config, description='Fully connected neural network training on CIFAR-100')
-    dataset = load_cifar()
+    dataset = utils.load_cifar(USE_CIFAR100)
     ops = build_graph(hp)
     train(hp, dataset, ops)
 
@@ -71,23 +70,11 @@ def train(hp, dataset, ops):
 
 def build_graph(hp):
     # Define and train FC neural network
-    model = dnn.DNN(INPUT_SIZE, N_CLASSES, hp)
+    model = dnn.DNN(utils.CIFAR_INPUT_SIZE, N_CLASSES, hp)
     trainer = dnn.Trainer(hp, model)
     saver = tf.train.Saver()
     init_ops = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer(), name='init_op')
     return model, trainer, saver, init_ops
-
-
-def load_cifar():
-    # Load CIFAR-100 dataset and normalize it over each channels
-    def _normalize(samples):
-        v_min = samples.min(axis=(0, 1, 2), keepdims=True)
-        v_max = samples.max(axis=(0, 1, 2), keepdims=True)
-        return (samples - v_min)/(v_max - v_min)
-    (train_x, train_y), (test_x, test_y) = cifar100.load_data(label_mode='fine') if USE_CIFAR100 else cifar10.load_data()
-    (train_x, train_y) = np.reshape(_normalize(train_x), [-1, INPUT_SIZE]), np.reshape(train_y, [-1])
-    (test_x, test_y) = np.reshape(_normalize(test_x), [-1, INPUT_SIZE]), np.reshape(test_y, [-1])
-    return (train_x, train_y), (test_x, test_y)
 
 
 def _train_epoch(trainer, sess, train_x, train_y, hp):

@@ -4,14 +4,17 @@
 import argparse
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.keras.datasets import cifar10, cifar100
 
 __all__ = ['tf_config', 'num_flat_features', 'hyperparameters_from_args', 'default_hyperparameters', 'batch',
-           'add_summary_values', 'relu_xavier_avg', 'tanh_xavier_avg', 'linear_xavier_avg', 'leaky_relu']
+           'add_summary_values', 'relu_xavier_avg', 'tanh_xavier_avg', 'linear_xavier_avg', 'leaky_relu', 'load_cifar']
 
 CIFAR100_MEAN = (0.5071, 0.4867, 0.4408)
 CIFAR100_STD = (0.2675, 0.2565, 0.2761)
 CIFAR10_MEAN = (0.5071, 0.4867, 0.4408)
 CIFAR10_STD = (0.2023, 0.1994, 0.2010)
+CIFAR_INPUT_SIZE = 32*32*3
+
 
 # Xavier initialization helpers
 RELU_XAVIER_SCALE = 2.
@@ -80,3 +83,15 @@ def batch(batch_size, *arrays, shuffle=False):
     for step, range_min in zip(range(batch_per_epoch), range(0, length - 1, batch_size)):
         range_max = min(range_min + batch_size, length)
         yield step, range_max - range_min, (array[range_min:range_max] for array in arrays)
+
+
+def load_cifar(load_cifar100=False):
+    # Load CIFAR-100 dataset and normalize it over each channels
+    def _normalize(samples):
+        v_min = samples.min(axis=(0, 1, 2), keepdims=True)
+        v_max = samples.max(axis=(0, 1, 2), keepdims=True)
+        return (samples - v_min)/(v_max - v_min)
+    (train_x, train_y), (test_x, test_y) = cifar100.load_data(label_mode='fine') if load_cifar100 else cifar10.load_data()
+    (train_x, train_y) = np.reshape(_normalize(train_x), [-1, CIFAR_INPUT_SIZE]), np.reshape(train_y, [-1])
+    (test_x, test_y) = np.reshape(_normalize(test_x), [-1, CIFAR_INPUT_SIZE]), np.reshape(test_y, [-1])
+    return (train_x, train_y), (test_x, test_y)
