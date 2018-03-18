@@ -2,7 +2,7 @@
 
 ## Run instructions
 
-Assuming you installed Python 3 with *tensorflow*, *scikit-learn*, *numpy* you need to:  
+Assuming you installed Python 3 with *tensorflow*, *scikit-learn* and *numpy* you need to:  
 
 - Clone the project
 
