@@ -1,5 +1,5 @@
-# Explicit generalization training (WIP)
-
+# Learn error by explicit generalization (WIP)
+Learn to generalize explicitly by learning error vector on testset batch
 ## Run instructions
 
 Assuming you installed Python 3 with *tensorflow*, *scikit-learn* and *numpy* you need to:  
