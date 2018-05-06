@@ -65,16 +65,15 @@ class DNN(object):
             for i, in_size, out_size in zip(range(1, len(self.layers)), self.layers[:-1], self.layers[1:]):
                 layer = self._dense_layer(layer, [in_size, out_size], 'layer_{}'.format(i), self.batch_norm, self.weight_init, self.activation_fn, self.dropout)
             self.logits = self._dense_layer(layer, [self.layers[-1], self.n_classes], 'output_layer', self.batch_norm, self.weight_init)
-            with tf.variable_scope('output_layer'):
-                self.probs = tf.nn.softmax(self.logits, name='probs')
+            self.probs = tf.nn.softmax(self.logits, name='probs')
 
     def _dense_layer(self, x, shape, name, batch_norm, init, activation_fn=None, keep_prob=1.):
         with tf.variable_scope(name):
             self.weights.append(tf.get_variable(initializer=init(shape), name='w'))
             self.biases.append(tf.get_variable(initializer=tf.truncated_normal([shape[1]]) if shape[1] > 1 else 0., name='b'))
-            logits = tf.add(tf.matmul(x, self.weights[-1]), self.biases[-1])
+            logits = tf.add(tf.matmul(x, self.weights[-1]), self.biases[-1], name='logits' if not batch_norm else 'logits_no_bn')
             if batch_norm:
-                logits = tf.layers.batch_normalization(logits, training=self.training, name='batch_norm')
+                logits = tf.layers.batch_normalization(logits, training=self.training, name='logits')
             dense = activation_fn(logits) if activation_fn is not None else logits
-            dense = tf.nn.dropout(dense, keep_prob, name='logits')
+            dense = tf.nn.dropout(dense, keep_prob, name='output')
         return dense

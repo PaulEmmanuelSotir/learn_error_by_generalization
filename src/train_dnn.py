@@ -14,17 +14,18 @@ __all__ = ['build_graph', 'train']
 
 # Hyperparameters (argparse configuration)
 hyperparameters_config = {
-    '--lr': {'default': 1e-4, 'metavar': '-l', 'type': float, 'help': 'learning rate'},
-    '--l2_reg': {'default': 5e-4, 'metavar': '-r', 'type': float, 'help': 'L2 regularization factor'},
+    '--lr': {'default': 0.067133, 'metavar': '-l', 'type': float, 'help': 'learning rate'},
+    '--l2_reg': {'default': 0.03232, 'metavar': '-r', 'type': float, 'help': 'L2 regularization factor'},
     '--epochs': {'default': 100, 'metavar': '-e', 'type': int, 'help': 'Number of training epochs'},
-    '--dropout': {'default': 1., 'metavar': '-d', 'type': float, 'help': 'Dropout regularization'},
-    '--momentum': {'default': 0.9, 'metavar': '-m', 'type': float, 'help': 'SGD Momentum'},
-    '--batch_size': {'default': 64, 'metavar': '-b', 'type': int, 'help': 'Batch size to train on'},
+    '--dropout': {'default': 0.41618, 'metavar': '-d', 'type': float, 'help': 'Dropout regularization'},
+    '--momentum': {'default': 0.742533, 'metavar': '-m', 'type': float, 'help': 'SGD Momentum'},
+    '--batch_size': {'default': 256, 'metavar': '-b', 'type': int, 'help': 'Batch size to train on'},
     '--batch_norm': {'default': True, 'metavar': '-n', 'type': bool, 'help': 'Enable or disable batch normalization'},
-    '--weight_decay': {'default': 5e-4, 'type': float, 'help': 'Weight decay (L2 regularization)'},
-    '--layers': {'default': [128] * 5, 'type': int, 'help': 'Fully connected hidden layer sizes', 'nargs': '+'},
+    '--weight_decay': {'default': 0.02985, 'type': float, 'help': 'Weight decay (L2 regularization)'},
+    '--layers': {'default': [256] * 5, 'type': int, 'help': 'Fully connected hidden layer sizes', 'nargs': '+'},
     '--save_dir': {'default': '/home/pes/deeplearning/models/generalization_training/train_1/', 'type': str, 'help': 'Tensorflow model save directory'}
 }
+
 
 INFERENCE_BATCH_SIZE = 1024
 ALLOW_GPU_MEM_GROWTH = True
@@ -34,7 +35,7 @@ N_CLASSES = 100 if USE_CIFAR100 else 10
 
 def main():
     # Parse cmd arguments
-    hp = utils.hyperparameters_from_args(hyperparameters_config, description='Fully connected neural network training on CIFAR-100')
+    hp = vars(utils.hyperparameters_from_args(hyperparameters_config, description='Fully connected neural network training on CIFAR-100'))
     dataset = utils.load_cifar(USE_CIFAR100)
     ops = build_graph(hp)
     train(hp, dataset, ops)
@@ -48,6 +49,8 @@ def train(hp, dataset, ops):
         # Initialize parameters and create summary writer
         best_acc = 0.
         sess.run(init_ops)
+        if hp['save_dir'][-1] != '/':
+            hp['save_dir'] += '/'
         shutil.rmtree(hp['save_dir'], ignore_errors=True)
         os.makedirs(hp['save_dir'], exist_ok=True)
         summary_writer = tf.summary.FileWriter(hp['save_dir'], sess.graph)

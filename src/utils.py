@@ -1,13 +1,18 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Utils """
+import sys
 import argparse
+import importlib
 import numpy as np
 import tensorflow as tf
+from collections import OrderedDict
+import tensorflow.contrib.graph_editor as ge
+from tensorflow.python.client import device_lib
 from tensorflow.python.keras.datasets import cifar10, cifar100
 
-__all__ = ['tf_config', 'num_flat_features', 'hyperparameters_from_args', 'default_hyperparameters', 'batch',
-           'add_summary_values', 'relu_xavier_avg', 'tanh_xavier_avg', 'linear_xavier_avg', 'leaky_relu', 'load_cifar']
+__all__ = ['import_and_reload', 'tf_config', 'get_available_gpus', 'num_flat_features', 'hyperparameters_from_args', 'default_hyperparameters', 'batch',
+           'add_summary_values', 'relu_xavier_avg', 'tanh_xavier_avg', 'linear_xavier_avg', 'leaky_relu', 'load_cifar', 'graph_replace', 'extract_update_dict']
 
 CIFAR100_MEAN = (0.5071, 0.4867, 0.4408)
 CIFAR100_STD = (0.2675, 0.2565, 0.2761)
@@ -25,10 +30,24 @@ tanh_xavier_avg = tf.variance_scaling_initializer(TANH_XAVIER_SCALE, mode="fan_a
 linear_xavier_avg = tf.variance_scaling_initializer(LINEAR_XAVIER_SCALE, mode="fan_avg")
 
 
-def tf_config(allow_growth=True, **kwargs):
+def import_and_reload(module_name, path='.'):
+    if path not in sys.path:
+        sys.path.append(path)
+    module = importlib.import_module(module_name)
+    module = importlib.reload(module)
+    return module
+
+
+def tf_config(allow_growth=True, allow_soft_placement=True, **kwargs):
     config = tf.ConfigProto(**kwargs)
     config.gpu_options.allow_growth = allow_growth
+    config.allow_soft_placement = allow_soft_placement
     return config
+
+
+def get_available_gpus():
+    local_device_protos = device_lib.list_local_devices()
+    return [x.name for x in local_device_protos if x.device_type == 'GPU']
 
 
 def leaky_relu(x, leak=0.2, name='leaky_relu'):
@@ -73,14 +92,16 @@ def num_flat_features(x, ignore_first_dim=True):
     return np.prod([dim for dim in shape])
 
 
-def batch(batch_size, *arrays, shuffle=False):
+def batch(batch_size, *arrays, shuffle=False, fixed_size_batches=False):
     """ Yields step number, effective batch size and arrays batches """
     length = len(arrays[0])
     if shuffle:
         perm = np.random.permutation(length)
         arrays = [array[perm] for array in arrays]
     batch_per_epoch = int(np.ceil(length / batch_size))
-    for step, range_min in zip(range(batch_per_epoch), range(0, length - 1, batch_size)):
+    for step, range_min in zip(range(batch_per_epoch), range(0, length, batch_size)):
+        if fixed_size_batches and range_min + batch_size > length:
+            break
         range_max = min(range_min + batch_size, length)
         yield step, range_max - range_min, (array[range_min:range_max] for array in arrays)
 
@@ -90,8 +111,43 @@ def load_cifar(load_cifar100=False):
     def _normalize(samples):
         v_min = samples.min(axis=(0, 1, 2), keepdims=True)
         v_max = samples.max(axis=(0, 1, 2), keepdims=True)
-        return (samples - v_min)/(v_max - v_min)
+        return (samples - v_min) / (v_max - v_min)
     (train_x, train_y), (test_x, test_y) = cifar100.load_data(label_mode='fine') if load_cifar100 else cifar10.load_data()
     (train_x, train_y) = np.reshape(_normalize(train_x), [-1, CIFAR_INPUT_SIZE]), np.reshape(train_y, [-1])
     (test_x, test_y) = np.reshape(_normalize(test_x), [-1, CIFAR_INPUT_SIZE]), np.reshape(test_y, [-1])
     return (train_x, train_y), (test_x, test_y)
+
+
+def graph_replace(*args, **kwargs):
+    """
+    Monkey patch graph_replace so that it works with TF 1.0+
+    See https://github.com/tensorflow/tensorflow/issues/9978 or https://github.com/tensorflow/tensorflow/issues/9125
+    """
+    for op in tf.get_default_graph().get_operations():
+        op._original_op = None
+    return ge.graph_replace(*args, **kwargs)
+
+
+def extract_update_dict(update_ops):
+    """Extract variables and their new values from Assign and AssignAdd ops.
+    Code from https://github.com/poolio/unrolled_gan/blob/master/Unrolled%20GAN%20demo.ipynb
+
+    Args:
+        update_ops: list of Assign and AssignAdd ops, typically computed using Keras' opt.get_updates()
+
+    Returns:
+        dict mapping from variable values to their updated value
+    """
+    name_to_var = {v.name: v for v in tf.global_variables()}
+    updates = OrderedDict()
+    for update in update_ops:
+        var_name = update.op.inputs[0].name
+        var = name_to_var[var_name]
+        value = update.op.inputs[1]
+        if update.op.type == 'Assign':
+            updates[var.value()] = value
+        elif update.op.type == 'AssignAdd':
+            updates[var.value()] = var + value
+        else:
+            raise ValueError("Update op type (%s) must be of type Assign or AssignAdd" % update_op.op.type)
+    return updates
