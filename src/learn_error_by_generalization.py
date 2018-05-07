@@ -29,24 +29,25 @@ hyperparameters_config = {
     'sub_epsilon': {'default': keras.backend.epsilon(), 'type': float, 'help': 'Epsilon parameter of Adam sub optimizer'},
     'sub_batch_size': {'default': 256, 'type': int, 'help': 'Test batch size'},
     'save_dir': {'default': '/home/pes/deeplearning/generalization_training/egt_1/', 'type': str, 'help': 'Tensorflow model save directory'},
-    'trained_model_dir': {'default': '/home/pes/deeplearning/generalization_training/train_1/', 'type': str, 'help': 'Tensorflow pretrained model directory'}
+    'trained_model_dir': {'default': '/home/pes/deeplearning/models/generalization_training/train_dnn_2/', 'type': str, 'help': 'Tensorflow pretrained model directory'}
 }
 
 __all__ = ['explicit_generalization_training', 'build_update_model', 'learn_error_by_generalization', 'evaluate']
 
 
 def explicit_generalization_training(hp, dataset):
-    # We first restore trained model
-    saver = tf.train.Saver()
-
+    # Restore trained DNN model
+    dnn_model = dnn.DNN(utils.CIFAR_INPUT_SIZE, N_CLASSES, dnn_hp)
     with tf.Session(config=utils.tf_config(ALLOW_GPU_MEM_GROWTH)) as sess:
+        saver = tf.train.Saver()
         saver.restore(sess, hp['trained_model_dir'])
 
-        # We then build tensorflow graph of loaded model with parameter update opertations
-        # This model's trainable variables are error values on testset batch
-        update_model = build_update_model(hp)
+    # We build tensorflow graph of loaded model with parameter update opertations
+    # This model's trainable variables are error values on testset batch
+    update_model = build_update_model(hp)
 
-        # Train the update model to minimize generalization error by finding the error vector for which weight updates imply the best score on trainset
+    # Train the update model to minimize generalization error by finding the error vector for which weight updates imply the best score on trainset
+    with tf.Session(config=utils.tf_config(ALLOW_GPU_MEM_GROWTH)) as sess:
         learn_error_by_generalization(sess, update_model, dataset)
 
 
