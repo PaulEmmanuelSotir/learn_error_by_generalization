@@ -14,17 +14,16 @@ import utils
 __all__ = ['hyperparameter_search']
 
 USE_CIFAR100 = False
-N_ITER = 100
+N_ITER = 700
 HP_DOMAIN = {
-    'lr': [1e-5, 0.1],
-    'l2_reg': [1e-6, 5e-2],
-    'epochs': 90,
-    'dropout': [0.4, 1.],
-    'momentum': [0.6, 0.95],
-    'batch_size': (32, 64, 128, 256, 512),
+    'lr': [5e-4, 0.25],
+    'l2_reg': [4e-6, 4e-2],
+    'epochs': 100,
+    'dropout': [0.6, 1.],
+    'momentum': [0.65, 0.90],
+    'batch_size': (64, 128, 256),
     'batch_norm': (True, False),
-    'weight_decay': [0., 5e-2],
-    'layers': [256] * 3,
+    'layers': [256] * 4,
     'save_dir': '/home/pes/deeplearning/models/generalization_training/hp_search_1/'
 }
 
@@ -66,7 +65,7 @@ def _hp_search_replica(start_time, gpu_devices, mutex, best_results, rep_id, n_i
             else:
                 hp[param] = domain
             print('\t\thp[\'%s\'] = ' % param + str(hp[param]))
-        hp['save_dir'] = os.path.join(hp['save_dir'], model_name)
+        hp['save_dir'] = os.path.join(hp['save_dir'], model_name) + '/'
 
         # Build and train model
         g = tf.Graph()
