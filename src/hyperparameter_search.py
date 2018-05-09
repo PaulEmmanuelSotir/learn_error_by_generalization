@@ -14,14 +14,14 @@ import utils
 __all__ = ['hyperparameter_search']
 
 USE_CIFAR100 = False
-N_ITER = 700
+N_ITER = 1200
 HP_DOMAIN = {
     'lr': [5e-4, 0.25],
-    'l2_reg': [4e-6, 4e-2],
+    'l2_reg': [0., 5e-2],
     'epochs': 100,
     'dropout': [0.6, 1.],
     'momentum': [0.65, 0.90],
-    'batch_size': (64, 128, 256),
+    'batch_size': (64, 128, 256, 512),
     'batch_norm': (True, False),
     'layers': [256] * 4,
     'save_dir': '/home/pes/deeplearning/models/generalization_training/hp_search_1/'
