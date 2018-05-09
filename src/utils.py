@@ -1,7 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Utils """
+import os
 import sys
+import shutil
 import argparse
 import importlib
 import numpy as np
@@ -12,7 +14,7 @@ from tensorflow.python.client import device_lib
 from tensorflow.python.keras.datasets import cifar10, cifar100
 
 __all__ = ['import_and_reload', 'tf_config', 'get_available_gpus', 'num_flat_features', 'hyperparameters_from_args', 'default_hyperparameters', 'batch',
-           'add_summary_values', 'relu_xavier_avg', 'tanh_xavier_avg', 'linear_xavier_avg', 'leaky_relu', 'load_cifar', 'graph_replace', 'extract_update_dict']
+           'add_summary_values', 'relu_xavier_avg', 'tanh_xavier_avg', 'linear_xavier_avg', 'leaky_relu', 'load_cifar', 'replace_dir', 'graph_replace', 'extract_update_dict']
 
 CIFAR100_MEAN = (0.5071, 0.4867, 0.4408)
 CIFAR100_STD = (0.2675, 0.2565, 0.2761)
@@ -116,6 +118,13 @@ def load_cifar(load_cifar100=False):
     (train_x, train_y) = np.reshape(_normalize(train_x), [-1, CIFAR_INPUT_SIZE]), np.reshape(train_y, [-1])
     (test_x, test_y) = np.reshape(_normalize(test_x), [-1, CIFAR_INPUT_SIZE]), np.reshape(test_y, [-1])
     return (train_x, train_y), (test_x, test_y)
+
+
+def replace_dir(directory):
+    directory = os.path.join(directory, '')
+    shutil.rmtree(directory, ignore_errors=True)
+    os.makedirs(directory, exist_ok=True)
+    return directory
 
 
 def graph_replace(*args, **kwargs):

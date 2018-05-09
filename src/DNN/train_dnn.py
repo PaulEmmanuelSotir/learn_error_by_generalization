@@ -1,13 +1,11 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Generalization loss """
-import os
-import shutil
 import numpy as np
 import tensorflow as tf
 
 import utils
-import dnn
+from DNN import dnn
 
 # TODO: try other optimization methods
 __all__ = ['build_graph', 'train']
@@ -22,7 +20,7 @@ hyperparameters_config = {
     'batch_size': {'default': 128, 'metavar': '-b', 'type': int, 'help': 'Batch size to train on'},
     'batch_norm': {'default': False, 'metavar': '-n', 'type': bool, 'help': 'Enable or disable batch normalization'},
     'layers': {'default': [256] * 6, 'type': int, 'help': 'Fully connected hidden layer sizes', 'nargs': '+'},
-    'save_dir': {'default': '/home/pes/deeplearning/models/generalization_training/train_1/', 'type': str, 'help': 'Tensorflow model save directory'}
+    'save_dir': {'default': '/home/pes/deeplearning/models/cifar10_dnn/train_dnn_1/', 'type': str, 'help': 'Tensorflow model save directory'}
 }
 
 INFERENCE_BATCH_SIZE = 1024
@@ -47,10 +45,7 @@ def train(hp, dataset, ops):
         # Initialize parameters and create summary writer
         best_acc = 0.
         sess.run(init_ops)
-        if hp['save_dir'][-1] != '/':
-            hp['save_dir'] += '/'
-        shutil.rmtree(hp['save_dir'], ignore_errors=True)
-        os.makedirs(hp['save_dir'], exist_ok=True)
+        hp['save_dir'] = utils.replace_dir(hp['save_dir'])
         summary_writer = tf.summary.FileWriter(hp['save_dir'], sess.graph)
 
         for epoch in range(hp['epochs']):
