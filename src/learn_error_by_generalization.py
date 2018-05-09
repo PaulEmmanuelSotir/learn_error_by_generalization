@@ -17,28 +17,29 @@ import utils
 # TODO: pretrain model on different samples than the trainset used here
 # TODO: try to apply/assign updates with a low learning rate instead of getting rid of them
 # TODO: add metrics to tf summary
+# TODO: unroll multiple parameter update steps instead of one
 ALLOW_GPU_MEM_GROWTH = True
 USE_CIFAR100 = False
 N_CLASSES = 100 if USE_CIFAR100 else 10
 
 hyperparameters_config = {
-    'lr': {'default': 3e-4, 'metavar': '-l', 'type': float, 'help': 'learning rate'},
-    'steps': {'default': 16, 'metavar': '-s', 'type': int, 'help': 'Number of gradient descent steps to learn error parameter'},
-    'batch_size': {'default': 64, 'metavar': '-b', 'type': int, 'help': 'Training batch size'},
-    'sub_lr': {'default': 0.004810949156452254, 'type': float, 'help': 'sub-learning rate'},
-    'sub_steps': {'default': 64, 'type': int, 'help': 'Number of gradient descent steps to learn error parameter'},
-    'sub_momentum': {'default': 0.7535053776517011, 'type': float, 'help': 'Momentum sub-optimizer parameter'},
-    'sub_batch_size': {'default': 128, 'type': int, 'help': 'Test batch size'},
-    'save_dir': {'default': '/home/pes/deeplearning/generalization_training/egt_1/', 'type': str, 'help': 'Tensorflow model save directory'},
-    'trained_model_dir': {'default': '/home/pes/deeplearning/models/cifar10_dnn/train_dnn_1/', 'type': str, 'help': 'Tensorflow pretrained model directory'},
-    'dnn_hp': {'default': {'lr': 0.004810949156452254,
-                           'l2_reg': 0.004088853747157203,
-                           'epochs': 40,
-                           'dropout': 1.0,
-                           'momentum': 0.7535053776517011,
-                           'batch_size': 128,
-                           'batch_norm': False,
-                           'layers': [256, 256, 256, 256, 256, 256]}, 'help': 'Pretrained DNN hyperparameters'}
+    '--lr': {'default': 3e-4, 'metavar': '-l', 'type': float, 'help': 'learning rate'},
+    '--steps': {'default': 16, 'metavar': '-s', 'type': int, 'help': 'Number of gradient descent steps to learn error parameter'},
+    '--batch_size': {'default': 64, 'metavar': '-b', 'type': int, 'help': 'Training batch size'},
+    '--sub_lr': {'default': 0.004810949156452254, 'type': float, 'help': 'sub-learning rate'},
+    '--sub_steps': {'default': 64, 'type': int, 'help': 'Number of gradient descent steps to learn error parameter'},
+    '--sub_momentum': {'default': 0.7535053776517011, 'type': float, 'help': 'Momentum sub-optimizer parameter'},
+    '--sub_batch_size': {'default': 128, 'type': int, 'help': 'Test batch size'},
+    '--save_dir': {'default': '/home/pes/deeplearning/generalization_training/egt_1/', 'type': str, 'help': 'Tensorflow model save directory'},
+    '--trained_model_dir': {'default': '/home/pes/deeplearning/models/cifar10_dnn/train_dnn_1/', 'type': str, 'help': 'Tensorflow pretrained model directory'},
+    '--dnn_hp': {'default': {'lr': 0.004810949156452254,
+                             'l2_reg': 0.004088853747157203,
+                             'epochs': 40,
+                             'dropout': 1.0,
+                             'momentum': 0.7535053776517011,
+                             'batch_size': 128,
+                             'batch_norm': False,
+                             'layers': [256, 256, 256, 256, 256, 256]}, 'help': 'Pretrained DNN hyperparameters'}
 }
 
 __all__ = ['explicit_generalization_training', 'build_graph', 'train', 'evaluate']
@@ -63,6 +64,7 @@ def build_graph(hp):
         test_X_ph = g.get_tensor_by_name("DNN/X:0")
         trained_variables = [v for v in tf.global_variables() if v.name[:4] == 'DNN/']
         learnable_error = tf.Variable(tf.zeros([hp['batch_size'], N_CLASSES], tf.float32), name='learnable_error')
+        tf.summary.tensor_summary('learnable_error', learnable_error)
 
         logits = g.get_tensor_by_name('DNN/output_layer/logits:0')
         probs = g.get_tensor_by_name("DNN/probs:0")
@@ -75,6 +77,7 @@ def build_graph(hp):
         opt = SGD(lr=hp['sub_lr'], momentum=hp['sub_momentum'], nesterov=True)
         with tf.variable_scope('adam_updates'):
             sub_updates = opt.get_updates(test_loss, trained_variables)
+            updates_ops = tf.group(*sub_updates, name="updates_ops")
         replacements = utils.extract_update_dict(sub_updates)
         replacements[test_X_ph] = train_X_ph
 
@@ -95,37 +98,44 @@ def build_graph(hp):
         meta_optimize = tf.assign_sub(learnable_error, lr * meta_gradients[0], name='optimize')
 
     init_ops = tf.variables_initializer([v for v in tf.global_variables() if 'EGT/' in v.name])
-    return (test_X_ph, train_X_ph, train_y_ph), generalization_loss, test_loss, probs, new_probs, meta_optimize, init_ops, dnn_saver
+    return (test_X_ph, train_X_ph, train_y_ph), generalization_loss, test_loss, probs, new_probs, meta_optimize, updates_ops, init_ops, dnn_saver
 
 
 def train(hp, dataset, ops):
     """ Train the update model to minimize generalization error by finding the error vector for which weight updates imply the best score on trainset """
-    (placeholders, generalization_loss, test_loss, probs, new_probs, meta_optimize, error_init, dnn_saver) = ops
+    (placeholders, generalization_loss, test_loss, probs, new_probs, meta_optimize, updates_ops, init_ops, dnn_saver) = ops
     (test_X_ph, train_X_ph, train_y_ph) = placeholders
     (train_X, train_y), (test_X, test_y) = dataset
+    summary_ops = tf.get_collection(tf.GraphKeys.SUMMARIES)
 
     with tf.Session(config=utils.tf_config(ALLOW_GPU_MEM_GROWTH)) as sess:
         # Restore pretrained DNN variables
         dnn_saver.restore(sess, hp['trained_model_dir'])
+
         hp['save_dir'] = utils.replace_dir(hp['save_dir'])
+        summary_writer = tf.summary.FileWriter(hp['save_dir'], sess.graph)
 
         mean_test_acc, mean_new_test_acc = 0, 0
         for step, test_batch_size, (batch_x_test, batch_y_test) in utils.batch(hp['batch_size'], test_X, test_y, fixed_size_batches=True):
             print('\n' + '-' * 80 + '\nStep %03d/%03d' % (step, hp['steps']))
             # Initialize error vector
-            sess.run(error_init)
+            sess.run(init_ops)
             # Train it
             mean_loss, mean_sub_loss = 0, 0
             for sub_step, _, (batch_x, batch_y) in utils.batch(hp['sub_batch_size'], train_X, train_y, shuffle=True, fixed_size_batches=True):
-                result = sess.run([meta_optimize, generalization_loss, test_loss, probs, new_probs],
+                result = sess.run([meta_optimize, generalization_loss, test_loss, probs, new_probs, summary_ops],
                                   feed_dict={test_X_ph: batch_x_test, train_X_ph: batch_x, train_y_ph: batch_y})
-                _, loss, sub_loss, test_probs, test_new_probs = result
+                _, loss, sub_loss, test_probs, test_new_probs, summary = result
+                for s in summary:
+                    summary_writer.add_summary(s, global_step=sub_step)
+                utils.add_summary_values(summary_writer, global_step=sub_step, sub_loss=sub_loss, loss=loss)
                 mean_loss += loss / (hp['sub_batch_size'] * hp['sub_steps'])
                 mean_sub_loss += sub_loss / (hp['sub_batch_size'] * hp['sub_steps'])
                 if sub_step >= hp['sub_steps']:
                     break
             # Evaluate model accuracy on testset batch given trained error and DNN prediction
             test_acc, new_test_acc = evaluate(test_probs, test_new_probs, batch_y_test)
+            utils.add_summary_values(summary_writer, global_step=step, test_acc=test_acc, new_test_acc=new_test_acc)
             print('\tgeneralization_loss=%2.5f\tsub_loss=%2.5f\ttest_acc=%3.4f\tnew_test_acc=%3.4f' % (mean_loss, mean_sub_loss, test_acc, new_test_acc))
             mean_test_acc += test_acc / hp['steps']
             mean_new_test_acc += new_test_acc / hp['steps']

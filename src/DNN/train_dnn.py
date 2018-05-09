@@ -12,15 +12,15 @@ __all__ = ['build_graph', 'train']
 
 # Hyperparameters (argparse configuration)
 hyperparameters_config = {
-    'lr': {'default': 0.004810949156452254, 'metavar': '-l', 'type': float, 'help': 'learning rate'},
-    'l2_reg': {'default': 0.004088853747157203, 'metavar': '-r', 'type': float, 'help': 'L2 regularization factor (weight decay)'},
-    'epochs': {'default': 200, 'metavar': '-e', 'type': int, 'help': 'Number of training epochs'},
-    'dropout': {'default': 1., 'metavar': '-d', 'type': float, 'help': 'Dropout regularization'},
-    'momentum': {'default': 0.7535053776517011, 'metavar': '-m', 'type': float, 'help': 'SGD Momentum'},
-    'batch_size': {'default': 128, 'metavar': '-b', 'type': int, 'help': 'Batch size to train on'},
-    'batch_norm': {'default': False, 'metavar': '-n', 'type': bool, 'help': 'Enable or disable batch normalization'},
-    'layers': {'default': [256] * 6, 'type': int, 'help': 'Fully connected hidden layer sizes', 'nargs': '+'},
-    'save_dir': {'default': '/home/pes/deeplearning/models/cifar10_dnn/train_dnn_1/', 'type': str, 'help': 'Tensorflow model save directory'}
+    '--lr': {'default': 0.004810949156452254, 'metavar': '-l', 'type': float, 'help': 'learning rate'},
+    '--l2_reg': {'default': 0.004088853747157203, 'metavar': '-r', 'type': float, 'help': 'L2 regularization factor (weight decay)'},
+    '--epochs': {'default': 200, 'metavar': '-e', 'type': int, 'help': 'Number of training epochs'},
+    '--dropout': {'default': 1., 'metavar': '-d', 'type': float, 'help': 'Dropout regularization'},
+    '--momentum': {'default': 0.7535053776517011, 'metavar': '-m', 'type': float, 'help': 'SGD Momentum'},
+    '--batch_size': {'default': 128, 'metavar': '-b', 'type': int, 'help': 'Batch size to train on'},
+    '--batch_norm': {'default': False, 'metavar': '-n', 'type': bool, 'help': 'Enable or disable batch normalization'},
+    '--layers': {'default': [256] * 6, 'type': int, 'help': 'Fully connected hidden layer sizes', 'nargs': '+'},
+    '--save_dir': {'default': '/home/pes/deeplearning/models/cifar10_dnn/train_dnn_1/', 'type': str, 'help': 'Tensorflow model save directory'}
 }
 
 INFERENCE_BATCH_SIZE = 1024
