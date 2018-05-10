@@ -18,12 +18,16 @@ class Trainer(object):
         with tf.variable_scope('L2_regularization'):
             L2 = self.l2_reg * tf.add_n([tf.nn.l2_loss(w) for w in self.model.weights])
         self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.model.y, logits=self.model.logits), name='xentropy') + L2
-        self.optimize = tf.train.MomentumOptimizer(learning_rate=self.lr, momentum=self.momentum, use_nesterov=True).minimize(self.loss)
+        opt = tf.train.MomentumOptimizer(learning_rate=self.lr, momentum=self.momentum, use_nesterov=True).minimize(self.loss)
+        self.optimize = tf.tuple([self.loss], control_inputs=[opt], name='optimize')[0]
+        self.summ_ops = tf.summary.merge([tf.summary.histogram(v.name + '_histogram', v, collections=['extended_summary']) for v in tf.global_variables('DNN')])
 
-    def fit(self, sess, X, y):
+    def fit(self, sess, X, y, extended_summary=False):
         """ Train model on minibatch data """
-        _, loss = sess.run((self.optimize, self.loss), feed_dict={self.model.x: X, self.model.y: y, self.model.training: True})
-        return loss
+        feed_dict = {self.model.x: X, self.model.y: y, self.model.training: True}
+        if extended_summary:
+            return sess.run((self.optimize, self.summ_ops), feed_dict=feed_dict)
+        return sess.run(self.optimize, feed_dict=feed_dict)
 
     def predict(self, sess, X):
         """ Infer class probabilities from given input """

@@ -20,9 +20,11 @@ hyperparameters_config = {
     '--batch_size': {'default': 128, 'metavar': '-b', 'type': int, 'help': 'Batch size to train on'},
     '--batch_norm': {'default': False, 'metavar': '-n', 'type': bool, 'help': 'Enable or disable batch normalization'},
     '--layers': {'default': [256] * 6, 'type': int, 'help': 'Fully connected hidden layer sizes', 'nargs': '+'},
-    '--save_dir': {'default': '/home/pes/deeplearning/models/cifar10_dnn/train_dnn_1/', 'type': str, 'help': 'Tensorflow model save directory'}
+    '--save_dir': {'default': '/home/pes/deeplearning/models/cifar10_dnn/train_dnn_1/', 'type': str, 'help': 'Tensorflow model save directory'},
+    '--extended_summary': {'default': True, 'type': bool, 'help': 'Enable/Disable extended summary (summarizes all model parameters)'}
 }
 
+EXTENDED_SUMMARY_EVAL_PERIOD = 1
 INFERENCE_BATCH_SIZE = 1024
 ALLOW_GPU_MEM_GROWTH = True
 USE_CIFAR100 = False
@@ -32,6 +34,7 @@ N_CLASSES = 100 if USE_CIFAR100 else 10
 def main():
     # Parse cmd arguments
     hp = vars(utils.hyperparameters_from_args(hyperparameters_config, description='Fully connected neural network training on CIFAR-100'))
+    print(hp)
     dataset = utils.load_cifar(USE_CIFAR100)
     ops = build_graph(hp)
     train(hp, dataset, ops)
@@ -51,7 +54,14 @@ def train(hp, dataset, ops):
         for epoch in range(hp['epochs']):
             print('\n' + '-' * 80 + '\nEpoch %03d/%03d' % (epoch + 1, hp['epochs']))
             # Train and evaluate model
-            train_loss = _train_epoch(trainer, sess, train_x, train_y, hp)
+            train_loss = 0
+            for step, batch_size, (batch_x, batch_y) in utils.batch(hp['batch_size'], train_x, train_y, shuffle=True):
+                if hp['extended_summary'] and step == 0 and epoch % EXTENDED_SUMMARY_EVAL_PERIOD == 0:
+                    loss, summary = trainer.fit(sess, batch_x, batch_y, extended_summary=True)
+                    summary_writer.add_summary(summary, global_step=epoch)
+                else:
+                    loss = trainer.fit(sess, batch_x, batch_y)
+                train_loss += loss * batch_size / len(train_x)
             validloss, validacc = _valid(trainer, sess, test_x, test_y, hp)
             print('\ttrain_loss=%2.5f\tvalid_loss=%2.5f\tvalid_acc=%3.4f' % (train_loss, validloss, validacc))
             # Summaries metrics
@@ -71,14 +81,6 @@ def build_graph(hp):
     saver = tf.train.Saver()
     init_ops = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer(), name='init_op')
     return model, trainer, saver, init_ops
-
-
-def _train_epoch(trainer, sess, train_x, train_y, hp):
-    tot_loss = 0
-    for step, batch_size, (batch_x, batch_y) in utils.batch(hp['batch_size'], train_x, train_y, shuffle=True):
-        loss = trainer.fit(sess, batch_x, batch_y)
-        tot_loss += loss * batch_size / len(train_x)
-    return tot_loss
 
 
 def _valid(trainer, sess, test_x, test_y, hp):

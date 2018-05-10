@@ -18,6 +18,7 @@ import utils
 # TODO: try to apply/assign updates with a low learning rate instead of getting rid of them
 # TODO: add metrics to tf summary
 # TODO: unroll multiple parameter update steps instead of one
+# TODO: visualizer en détail le gradient (~hessienne)
 ALLOW_GPU_MEM_GROWTH = True
 USE_CIFAR100 = False
 N_CLASSES = 100 if USE_CIFAR100 else 10
@@ -64,7 +65,7 @@ def build_graph(hp):
         test_X_ph = g.get_tensor_by_name("DNN/X:0")
         trained_variables = [v for v in tf.global_variables() if v.name[:4] == 'DNN/']
         learnable_error = tf.Variable(tf.zeros([hp['batch_size'], N_CLASSES], tf.float32), name='learnable_error')
-        tf.summary.tensor_summary('learnable_error', learnable_error)
+        tf.summary.histogram('learnable_error', learnable_error)
 
         logits = g.get_tensor_by_name('DNN/output_layer/logits:0')
         probs = g.get_tensor_by_name("DNN/probs:0")
@@ -106,7 +107,7 @@ def train(hp, dataset, ops):
     (placeholders, generalization_loss, test_loss, probs, new_probs, meta_optimize, updates_ops, init_ops, dnn_saver) = ops
     (test_X_ph, train_X_ph, train_y_ph) = placeholders
     (train_X, train_y), (test_X, test_y) = dataset
-    summary_ops = tf.get_collection(tf.GraphKeys.SUMMARIES)
+    summary_ops = tf.summary.merge_all()
 
     with tf.Session(config=utils.tf_config(ALLOW_GPU_MEM_GROWTH)) as sess:
         # Restore pretrained DNN variables

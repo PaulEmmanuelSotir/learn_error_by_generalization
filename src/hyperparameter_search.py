@@ -26,6 +26,7 @@ DNN_HP_DOMAIN = {
     'batch_size': (64, 128, 256, 512),
     'batch_norm': (True, False),
     'layers': [256] * 4,
+    'extended_summary': False
 }
 
 EGT_HP_DOMAIN = {
